@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f4f6f8">
+  <title>Traction — machine d’essai virtuelle</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: #17212b;
+      background: #f4f6f8;
+      font-synthesis: none;
+      text-rendering: optimizeLegibility;
+      --muted: #667482;
+      --line: #e3e8ed;
+      --blue: #1769aa;
+      --blue-soft: #e9f3fb;
+      --green: #23845b;
+      --red: #c54848;
+    }
+
+    * { box-sizing: border-box; }
+    body { margin: 0; min-width: 320px; }
+    button, select, input { font: inherit; }
+    button, select { cursor: pointer; }
+    .shell { max-width: 1160px; margin: 0 auto; padding: 32px 24px 48px; }
+    header { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; margin-bottom: 24px; }
+    .eyebrow { color: var(--blue); text-transform: uppercase; font-size: 11px; font-weight: 750; letter-spacing: .12em; }
+    h1 { font-size: clamp(25px, 4vw, 34px); letter-spacing: -.035em; margin: 6px 0; }
+    .subtitle { margin: 0; color: var(--muted); font-size: 14px; }
+    .status { display: inline-flex; gap: 8px; align-items: center; padding: 8px 11px; border: 1px solid var(--line); background: white; border-radius: 999px; font-size: 12px; font-weight: 650; white-space: nowrap; }
+    .status::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: #97a3ad; }
+    .status.running::before { background: var(--green); box-shadow: 0 0 0 3px #e6f4ed; }
+    .status.broken { color: var(--red); }
+    .status.broken::before { background: var(--red); }
+    .layout { display: grid; grid-template-columns: 310px minmax(0, 1fr); gap: 18px; align-items: start; }
+    .panel { background: #fff; border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 2px 8px #17212b08; }
+    .controls { padding: 20px; }
+    h2 { font-size: 14px; margin: 0 0 17px; }
+    .field { margin-bottom: 16px; }
+    label { display: flex; justify-content: space-between; gap: 10px; font-size: 12px; font-weight: 650; margin-bottom: 7px; }
+    label span { color: var(--muted); font-weight: 450; }
+    select, input[type="number"] { width: 100%; padding: 10px 11px; border: 1px solid #d5dde4; border-radius: 7px; color: #17212b; background: #fff; }
+    select:focus, input:focus, button:focus-visible { outline: 3px solid #a8d1f1; outline-offset: 1px; }
+    .dimensions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .material-note { color: var(--muted); font-size: 11px; margin: -7px 0 16px; line-height: 1.5; }
+    .divider { height: 1px; background: var(--line); margin: 18px 0; }
+    .load-readout { display: flex; justify-content: space-between; align-items: baseline; margin: 0 0 8px; }
+    .load-readout strong { font-size: 22px; letter-spacing: -.03em; }
+    .load-readout span { color: var(--muted); font-size: 12px; }
+    input[type="range"] { width: 100%; accent-color: var(--blue); }
+    .range-limits { display: flex; justify-content: space-between; color: var(--muted); font-size: 10px; margin-top: 2px; }
+    .button-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px; }
+    button { border: 1px solid #d5dde4; background: white; color: #24313d; border-radius: 7px; min-height: 38px; padding: 8px 10px; font-size: 12px; font-weight: 650; }
+    button:hover:not(:disabled) { background: #f5f8fa; }
+    button.primary { color: white; border-color: var(--blue); background: var(--blue); }
+    button.primary:hover:not(:disabled) { background: #12598f; }
+    button:disabled { opacity: .48; cursor: not-allowed; }
+    .machine { padding: 18px; margin-bottom: 18px; }
+    .machine-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 6px; }
+    .machine-heading h2 { margin: 0; }
+    .machine-heading span { color: var(--muted); font-size: 11px; }
+    .machine-stage { height: 230px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+    .frame { width: 210px; height: 200px; position: relative; }
+    .frame-top, .frame-bottom { position: absolute; left: 37px; width: 136px; height: 12px; background: #536271; border-radius: 3px; }
+    .frame-top { top: 17px; }
+    .frame-bottom { bottom: 17px; }
+    .frame-rail { position: absolute; top: 22px; bottom: 22px; width: 9px; background: #d6dde3; border: 1px solid #bbc5ce; border-radius: 4px; }
+    .frame-rail.left { left: 48px; }
+    .frame-rail.right { right: 48px; }
+    .grip { position: absolute; left: 88px; width: 34px; height: 18px; background: #1769aa; border: 2px solid #105486; border-radius: 3px; z-index: 2; }
+    .grip.top { top: 45px; }
+    .grip.bottom { bottom: 45px; }
+    .specimen { position: absolute; left: 101px; top: 63px; height: 74px; width: 8px; border-radius: 4px; background: linear-gradient(90deg, #73b5e3, #1769aa 48%, #0d568f); transition: height .2s ease, top .2s ease, background .2s ease; z-index: 1; }
+    .broken .specimen { background: linear-gradient(to bottom, #1769aa 0 43%, transparent 43% 57%, #1769aa 57%); }
+    .force-arrow { position: absolute; left: 100px; top: 6px; color: var(--blue); font-size: 15px; font-weight: 800; }
+    .force-arrow.down { top: auto; bottom: 3px; }
+    .machine-caption { text-align: center; color: var(--muted); font-size: 11px; margin: -3px 0 4px; }
+    .results { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 18px; }
+    .metric { padding: 14px 15px; }
+    .metric-label { color: var(--muted); font-size: 11px; margin-bottom: 8px; }
+    .metric-value { font-size: clamp(17px, 2vw, 22px); font-weight: 750; letter-spacing: -.03em; }
+    .metric-unit { color: var(--muted); font-size: 11px; font-weight: 500; letter-spacing: 0; }
+    .chart-panel { padding: 18px 18px 12px; }
+    .chart-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .chart-header h2 { margin: 0; }
+    .legend { color: var(--muted); font-size: 11px; display: flex; gap: 7px; align-items: center; }
+    .legend::before { content: ""; width: 16px; border-top: 2px solid var(--blue); }
+    canvas { display: block; width: 100%; height: 220px; margin-top: 10px; }
+    .hint { margin: 8px 0 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
+    @media (max-width: 760px) {
+      .shell { padding: 24px 16px 36px; }
+      .layout { grid-template-columns: 1fr; }
+      .results { grid-template-columns: repeat(2, 1fr); }
+      header { align-items: center; }
+    }
+    @media (max-width: 430px) {
+      header { display: block; }
+      .status { margin-top: 14px; }
+      .machine { padding: 14px; }
+      .machine-heading span { max-width: 120px; text-align: right; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header>
+      <div>
+        <div class="eyebrow">Laboratoire virtuel · Matériaux</div>
+        <h1>Machine d’essai de traction</h1>
+        <p class="subtitle">Appliquez une charge et observez le comportement de l’éprouvette.</p>
+      </div>
+      <div class="status" id="status" role="status" aria-live="polite">Prête</div>
+    </header>
+
+    <div class="layout">
+      <section class="panel controls" aria-labelledby="setup-title">
+        <h2 id="setup-title">Préparation de l’essai</h2>
+        <div class="field">
+          <label for="material">Matériau</label>
+          <select id="material">
+            <option value="steel">Acier doux</option>
+            <option value="aluminum">Aluminium</option>
+            <option value="copper">Cuivre</option>
+          </select>
+        </div>
+        <p class="material-note" id="material-note"></p>
+        <div class="field">
+          <label>Dimensions initiales <span>éprouvette</span></label>
+          <div class="dimensions">
+            <div>
+              <label for="diameter">Diamètre <span>mm</span></label>
+              <input id="diameter" type="number" min="2" max="30" step="0.5" value="10">
+            </div>
+            <div>
+              <label for="length">Longueur utile <span>mm</span></label>
+              <input id="length" type="number" min="20" max="300" step="5" value="50">
+            </div>
+          </div>
+        </div>
+        <button id="prepare" type="button" class="primary" style="width:100%">Préparer l’éprouvette</button>
+        <div class="divider"></div>
+        <h2>Commande de la machine</h2>
+        <div class="load-readout">
+          <strong><span id="load-value">0.00</span> <span class="metric-unit">kN</span></strong>
+          <span>Force appliquée</span>
+        </div>
+        <input id="load" type="range" min="0" max="1" step="0.05" value="0" aria-label="Force appliquée en kilonewtons">
+        <div class="range-limits"><span>0 kN</span><span id="max-load">1 kN</span></div>
+        <div class="button-row">
+          <button type="button" id="step-down">− 0,5 kN</button>
+          <button type="button" id="step-up">+ 0,5 kN</button>
+        </div>
+        <div class="button-row">
+          <button type="button" id="run" class="primary">Lancer l’essai</button>
+          <button type="button" id="reset">Réinitialiser</button>
+        </div>
+      </section>
+
+      <section aria-label="Visualisation de l’essai">
+        <div class="panel machine">
+          <div class="machine-heading">
+            <h2>Éprouvette dans la machine</h2>
+            <span>Schéma non à l’échelle</span>
+          </div>
+          <div class="machine-stage">
+            <div class="frame" id="frame" aria-hidden="true">
+              <div class="frame-top"></div><div class="frame-bottom"></div>
+              <div class="frame-rail left"></div><div class="frame-rail right"></div>
+              <div class="force-arrow">↑</div><div class="force-arrow down">↓</div>
+              <div class="grip top"></div><div class="grip bottom"></div>
+              <div class="specimen" id="specimen"></div>
+            </div>
+          </div>
+          <p class="machine-caption" id="machine-caption">Éprouvette intacte · charge nulle</p>
+        </div>
+        <div class="results" aria-label="Résultats de l’essai">
+          <div class="panel metric"><div class="metric-label">Contrainte</div><div class="metric-value"><span id="stress">0</span> <span class="metric-unit">MPa</span></div></div>
+          <div class="panel metric"><div class="metric-label">Déformation</div><div class="metric-value"><span id="strain">0</span> <span class="metric-unit">%</span></div></div>
+          <div class="panel metric"><div class="metric-label">Allongement</div><div class="metric-value"><span id="elongation">0</span> <span class="metric-unit">mm</span></div></div>
+          <div class="panel metric"><div class="metric-label">Section initiale</div><div class="metric-value"><span id="area">78.5</span> <span class="metric-unit">mm²</span></div></div>
+        </div>
+        <div class="panel chart-panel">
+          <div class="chart-header"><h2>Courbe contrainte – déformation</h2><span class="legend">Essai actuel</span></div>
+          <canvas id="chart" role="img" aria-label="Courbe de contrainte en fonction de la déformation"></canvas>
+          <p class="hint">La simulation utilise un modèle simplifié : comportement élastique, écoulement plastique puis rupture. Les valeurs sont indicatives et ne remplacent pas un essai réel.</p>
+        </div>
+      </section>
+    </div>
+  </main>
+  <script>
+    (() => {
+      const materials = {
+        steel: { name: "Acier doux", modulus: 200000, yield: 250, ultimate: 400, note: "Module d’Young : 200 GPa · Limite élastique : 250 MPa · Résistance : 400 MPa" },
+        aluminum: { name: "Aluminium", modulus: 69000, yield: 145, ultimate: 290, note: "Module d’Young : 69 GPa · Limite élastique : 145 MPa · Résistance : 290 MPa" },
+        copper: { name: "Cuivre", modulus: 117000, yield: 70, ultimate: 220, note: "Module d’Young : 117 GPa · Limite élastique : 70 MPa · Résistance : 220 MPa" }
+      };
+      const $ = (id) => document.getElementById(id);
+      const materialInput = $("material");
+      const diameterInput = $("diameter");
+      const lengthInput = $("length");
+      const loadInput = $("load");
+      const chart = $("chart");
+      const context = chart.getContext("2d");
+      let points = [{ strain: 0, stress: 0 }];
+      let running = false;
+      let broken = false;
+      let timer = null;
+      let testState = { area: Math.PI * 25, length: 50, material: materials.steel, maxForce: 1 };
+
+      function currentForce() {
+        return Number(loadInput.value) * 1000;
+      }
+
+      function calculate(force) {
+        const stress = force / testState.area;
+        const material = testState.material;
+        const yieldStrain = material.yield / material.modulus;
+        const ultimateStrain = yieldStrain + (material.ultimate - material.yield) / (material.modulus * 0.08);
+        const strain = stress <= material.yield
+          ? stress / material.modulus
+          : yieldStrain + (stress - material.yield) / (material.modulus * 0.08);
+        return {
+          stress: Math.min(stress, material.ultimate),
+          strain: Math.min(strain, ultimateStrain),
+          yieldStrain,
+          ultimateStrain
+        };
+      }
+
+      function drawChart() {
+        const bounds = chart.getBoundingClientRect();
+        const ratio = window.devicePixelRatio || 1;
+        chart.width = Math.max(1, Math.round(bounds.width * ratio));
+        chart.height = Math.max(1, Math.round(bounds.height * ratio));
+        context.setTransform(ratio, 0, 0, ratio, 0, 0);
+        const width = bounds.width;
+        const height = bounds.height;
+        const left = 43, right = 12, top = 14, bottom = 32;
+        const plotWidth = width - left - right;
+        const plotHeight = height - top - bottom;
+        const maxStrain = Math.max(0.02, ...points.map(point => point.strain * 1.15));
+        const maxStress = Math.max(testState.material.ultimate * 1.15, ...points.map(point => point.stress * 1.1));
+        context.clearRect(0, 0, width, height);
+        context.font = "10px system-ui, sans-serif";
+        context.lineWidth = 1;
+        context.strokeStyle = "#e8edf1";
+        context.fillStyle = "#768491";
+        for (let i = 0; i <= 4; i++) {
+          const y = top + plotHeight * i / 4;
+          const x = left + plotWidth * i / 4;
+          context.beginPath(); context.moveTo(left, y); context.lineTo(width - right, y); context.stroke();
+          context.textAlign = "right";
+          context.fillText(`${Math.round(maxStress * (4 - i) / 4)} MPa`, left - 6, y + 3);
+          context.beginPath(); context.moveTo(x, top); context.lineTo(x, height - bottom); context.stroke();
+          context.textAlign = "center";
+          context.fillText(`${(maxStrain * i / 4 * 100).toFixed(1)}%`, x, height - 12);
+        }
+        context.strokeStyle = "#1769aa";
+        context.lineWidth = 2.5;
+        context.lineJoin = "round";
+        context.beginPath();
+        points.forEach((point, index) => {
+          const x = left + point.strain / maxStrain * plotWidth;
+          const y = top + plotHeight - point.stress / maxStress * plotHeight;
+          if (index === 0) context.moveTo(x, y); else context.lineTo(x, y);
+        });
+        context.stroke();
+        const now = calculate(currentForce());
+        const px = left + now.strain / maxStrain * plotWidth;
+        const py = top + plotHeight - now.stress / maxStress * plotHeight;
+        context.fillStyle = broken ? "#c54848" : "#1769aa";
+        context.beginPath(); context.arc(px, py, 4, 0, Math.PI * 2); context.fill();
+      }
+
+      function setStatus(text, state = "") {
+        $("status").textContent = text;
+        $("status").className = `status ${state}`;
+      }
+
+      function update() {
+        const force = currentForce();
+        const result = calculate(force);
+        const elongation = result.strain * testState.length;
+        $("load-value").textContent = (force / 1000).toFixed(2);
+        $("stress").textContent = Math.round(result.stress).toLocaleString("fr-FR");
+        $("strain").textContent = (result.strain * 100).toFixed(3);
+        $("elongation").textContent = elongation.toFixed(3);
+        $("area").textContent = testState.area.toFixed(1);
+        const stretch = Math.min(1, result.strain / Math.max(result.ultimateStrain, 0.001));
+        const specimenHeight = 74 + stretch * 32;
+        $("specimen").style.height = `${specimenHeight}px`;
+        $("specimen").style.top = `${100 - specimenHeight / 2}px`;
+        $("frame").classList.toggle("broken", broken);
+        $("machine-caption").textContent = broken
+          ? "Éprouvette rompue · résistance maximale atteinte"
+          : result.stress > testState.material.yield
+            ? "Déformation plastique · retour à la forme initiale impossible"
+            : force > 0
+              ? "Déformation élastique · retour à la forme initiale après décharge"
+              : "Éprouvette intacte · charge nulle";
+        $("step-down").disabled = force <= 0 || broken || running;
+        $("step-up").disabled = broken || running || force >= Number(loadInput.max) * 1000;
+        $("run").disabled = broken;
+        $("run").textContent = running ? "Arrêter l’essai" : "Lancer l’essai";
+        loadInput.disabled = running || broken;
+        drawChart();
+      }
+
+      function stopTest() {
+        running = false;
+        window.clearInterval(timer);
+        timer = null;
+        if (!broken) setStatus("En pause");
+        update();
+      }
+
+      function applyLoad(value) {
+        if (broken) return;
+        const clamped = Math.max(0, Math.min(Number(loadInput.max), value));
+        loadInput.value = String(clamped);
+        const result = calculate(currentForce());
+        points.push({ strain: result.strain, stress: result.stress });
+        if (result.stress >= testState.material.ultimate) {
+          broken = true;
+          stopTest();
+          setStatus("Éprouvette rompue", "broken");
+        }
+        update();
+      }
+
+      function prepare() {
+        const diameter = Number(diameterInput.value);
+        const length = Number(lengthInput.value);
+        const invalidDiameter = !Number.isFinite(diameter) || diameter < 2 || diameter > 30;
+        const invalidLength = !Number.isFinite(length) || length < 20 || length > 300;
+        diameterInput.setCustomValidity(invalidDiameter ? "Saisissez un diamètre entre 2 et 30 mm." : "");
+        lengthInput.setCustomValidity(invalidLength ? "Saisissez une longueur entre 20 et 300 mm." : "");
+        if (invalidDiameter || invalidLength) {
+          if (invalidDiameter) diameterInput.reportValidity();
+          else lengthInput.reportValidity();
+          return;
+        }
+        stopTest();
+        testState = {
+          area: Math.PI * diameter * diameter / 4,
+          length,
+          material: materials[materialInput.value],
+          maxForce: Math.ceil(materials[materialInput.value].ultimate * (Math.PI * diameter * diameter / 4) / 1000 * 1.15 * 20) / 20
+        };
+        loadInput.max = String(testState.maxForce);
+        loadInput.step = String(Math.max(0.01, Math.round(testState.maxForce / 100) / 100));
+        loadInput.value = "0";
+        $("max-load").textContent = `${testState.maxForce.toFixed(2)} kN`;
+        $("material-note").textContent = testState.material.note;
+        points = [{ strain: 0, stress: 0 }];
+        broken = false;
+        setStatus("Prête");
+        update();
+      }
+
+      materialInput.addEventListener("change", prepare);
+      $("prepare").addEventListener("click", prepare);
+      loadInput.addEventListener("input", () => applyLoad(Number(loadInput.value)));
+      $("step-up").addEventListener("click", () => applyLoad(Number(loadInput.value) + 0.5));
+      $("step-down").addEventListener("click", () => applyLoad(Number(loadInput.value) - 0.5));
+      $("run").addEventListener("click", () => {
+        if (running) { stopTest(); return; }
+        if (broken) return;
+        running = true;
+        setStatus("Essai en cours", "running");
+        update();
+        timer = window.setInterval(() => {
+          const increment = Number(loadInput.max) / 100;
+          applyLoad(Number(loadInput.value) + increment);
+        }, 100);
+      });
+      $("reset").addEventListener("click", () => {
+        stopTest();
+        loadInput.value = "0";
+        points = [{ strain: 0, stress: 0 }];
+        broken = false;
+        setStatus("Prête");
+        update();
+      });
+      window.addEventListener("resize", drawChart);
+      $("material-note").textContent = materials[materialInput.value].note;
+      prepare();
+    })();
+  </script>
+</body>
+</html>
